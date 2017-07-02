@@ -2,7 +2,7 @@
 
 INDI Web Manager is a simple Web Application to manage [INDI](http://www.indilib.org) server. It supports multiple driver profiles along with optional custom remote drivers. It can be used to start INDI server locally, and also to connect or **chain** to remote INDI servers.
 
-![INDI Web Manager](https://github.com/JBielanski/indiwebmanager/images/indiwebmanager.png)
+![INDI Web Manager](https://github.com/JBielanski/indiwebmanager/blob/master/images/indiwebserver.png)
 
 # Installation
 
