@@ -14,6 +14,17 @@
   <link rel="stylesheet" type="text/css" href="/static/css/bootstrap-select.min.css">
   <link rel="stylesheet" type="text/css" href="/static/css/schoolhouse.css">
 
+  <!-- Reflesh page elements -->
+  <script langauge="javascript">
+    window.setInterval("refreshDiv()", 1000);
+    function refreshDiv(){
+
+      getSensorsAM2302();
+      getSensorsGPS();
+
+    }
+  </script>
+
 </head>
 <body>
 
@@ -101,10 +112,21 @@
         </div>
     </div>
 
+    <h3>RASPBERRY PI SENSORS</h3>
 
     <div class="row">
         <div class="col-sm-6">
-
+	    <div class="form-group">
+                <label>Temperature and Humidity</label>
+                <div id="sensors_am2302_notify" class="well"></div>
+            </div>
+        </div>
+    
+        <div class="col-sm-6">
+            <div class="form-group">
+                <label>GPS</label>
+                <div id="sensors_gps_notify" class="well"></div>
+            </div>
         </div>
     </div>
 

@@ -3,9 +3,42 @@
 from bottle import Bottle, run, template, static_file, request
 from servermanager import startServer, stopServer, isServerRunning, getRunningDrivers
 from parsedrivers import driversList, findDriverByLabel, DeviceDriver
+from Adafruit_DHT import read_retry
+from datetime import datetime
+from dateutil import tz
+from gps import *
+from time import *
+import time
+import threading
 import db
 import json
 import os
+import sys
+import socket
+
+# Validate IP
+def is_valid_ipv4_address(address):
+    try:
+        socket.inet_pton(socket.AF_INET, address)
+    except AttributeError:  # no inet_pton here, sorry
+        try:
+            socket.inet_aton(address)
+        except socket.error:
+            return False
+        return address.count('.') == 3
+    except socket.error:  # not a valid address
+        return False
+
+    return True
+
+# Default IP
+my_ip = '10.0.0.1'
+
+# Get IP
+if len(sys.argv) == 2:
+	if is_valid_ipv4_address(sys.argv[1]):
+		my_ip = str(sys.argv[1])
+print "IP value for selected network is ", my_ip
 
 dirname, filename = os.path.split(os.path.abspath(__file__))
 os.chdir(dirname)
@@ -234,5 +267,275 @@ def get_custom_drivers(item):
     else:
         return json_string
 
+# ---------- Extra RaspberryPI 3 Functions -----------
+
+#
+# Added support for Adafruit AM2302 Temeperature/Humidity sensor
+# Sensor is connected to GPIO 25 ; PIN 22
+# Program use Adafruit_DHT driver from https://github.com/adafruit/Adafruit_Python_DHT
+#
+
+# AM2302 - 22 / DHT22 - 22 / DHT11 - 11
+dht_sensor = 22
+# GPIO25 ; PIN 22
+dht_pin = '25'
+
+# Get temperature
+@app.get('/api/sensors/temperature')
+def get_temperature():
+	humidity, temperature = read_retry(dht_sensor, dht_pin)
+	json_string = json.dumps(float('%.3f' % (temperature)))
+	if (json_string == "null"):
+        	return []
+    	else:
+		return json_string
+
+# Get humidity
+@app.get('/api/sensors/humidity')
+def get_humidity():
+       	humidity, temperature = read_retry(dht_sensor, dht_pin)
+       	json_string = json.dumps(float('%.3f' % (humidity)))
+        if (json_string == "null"):
+                return []
+        else:
+                return json_string
+
+# Get Temperature and Humidity
+@app.get('/api/sensors/am2302')
+def get_am2302():
+	humidity, temperature = read_retry(dht_sensor, dht_pin)
+	json_string = json.dumps([float('%.3f' % (temperature)), float('%.3f' % (humidity))])
+	if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+# ----------- GPS -------------
+
+gpsd = None #seting the global variable
+
+# GPS class
+class GpsPoller(threading.Thread):
+  def __init__(self):
+    threading.Thread.__init__(self)
+    global gpsd #bring it in scope
+    gpsd = gps(mode=WATCH_ENABLE) #starting the stream of info
+    self.current_value = None
+    self.running = True #setting the thread running to true
+
+  def run(self):
+    global gpsd
+    while gpsp.running:
+	gpsd.next() #this will continue to loop and grab EACH set of gpsd info to clear the buffer
+
+# Start GPS
+gpsp = GpsPoller() # create the thread
+gpsp.start() # start it up
+
+# Get latitude
+@app.get('/api/sensors/gps/latitude')
+def get_gps_latitiude():
+
+	#Test flag
+	flag = 0
+
+	#Convert latitude
+	latitude = 0.0
+	lat_sym = 'N'
+	while flag==0:
+		latitude = gpsd.fix.latitude
+		flag = 1
+		if math.isnan(latitude):
+			flag = 0
+
+	if latitude < 0:
+		latitude = math.fabs(latitude)
+		lat_sym = 'E'
+
+	json_string = json.dumps([latitude, lat_sym])
+        if (json_string == "null"):
+                return []
+        else:
+                return json_string
+
+# Get longitude
+@app.get('/api/sensors/gps/longitude')
+def get_gps_longitude():
+
+	#Test flag
+	flag = 0
+
+	#Convert longitude
+	longitude = 0.0
+	lon_sym = 'E'
+	while flag==0:
+		longitude = gpsd.fix.longitude
+		flag = 1
+		if math.isnan(longitude):
+			flag = 0
+
+	if longitude < 0:
+		longitude = math.fabs(longitude)
+		lon_sym = 'W'
+
+       	json_string = json.dumps([longitude, lon_sym])
+        if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+# Get altitude
+@app.get('/api/sensors/gps/altitude')
+def get_gps_altitude():
+
+	#Test flag
+	flag = 0
+
+	# Conver altitude
+	altitude = 0.0
+	alt_sym = 'm'
+	while flag==0:
+		altitude = gpsd.fix.altitude
+		flag = 1
+		if math.isnan(altitude):
+			flag = 0
+
+        json_string = json.dumps([altitude, alt_sym])
+        if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+
+
+# Get UTC time
+@app.get('/api/sensors/gps/utctime')
+def get_gps_utctime():
+
+	# Get time from GPS
+        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+       	# Timezone from system
+        from_zone = tz.tzutc()
+
+	# Give timezone
+        utc_time = utc_time.replace(tzinfo=from_zone)
+
+	# Save date/time and zone info
+	cur_date = utc_time.strftime('%d/%m/%Y')
+        cur_time = utc_time.strftime('%H:%M:%S')
+	cur_zone = utc_time.strftime('%Z')
+
+	#Write data to JSON
+	json_string = json.dumps([cur_date, cur_time, cur_zone])
+        if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+# Get LOCAL time
+@app.get('/api/sensors/gps/localtime')
+def get_gps_localtime():
+
+	# Get time from GPS
+        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        # Timezone from system
+        from_zone = tz.tzutc()
+	to_zone = tz.tzlocal()
+
+        # Give timezone
+        utc_time = utc_time.replace(tzinfo=from_zone)
+
+	# Convert time zone
+        local_time = utc_time.astimezone(to_zone)
+
+       	# Save date/time and zone info
+        cur_date = local_time.strftime('%d/%m/%Y')
+        cur_time = local_time.strftime('%H:%M:%S')
+        cur_zone = local_time.strftime('%Z')
+
+	# Write data to JSON
+        json_string = json.dumps([cur_date, cur_time, cur_zone])
+        if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+
+# Get NEO-6M GPS DATA
+@app.get('/api/sensors/gps/gps')
+def get_gps_neo6mgps():
+
+	# Test flag
+	flag = 0
+
+	# Convert LONGITUDE / LATITUDE / ALTITUDE
+	latitude = 0.0
+	lat_sym = 'N'
+	longitude = 0.0
+	lon_sym = 'E'
+	altitude = 0.0
+	alt_sym = 'm'
+
+	# Repeat getting GPS while they are incorrect
+	while flag==0:
+		latitude = gpsd.fix.latitude
+		longitude = gpsd.fix.longitude
+		altitude = gpsd.fix.altitude
+		flag = 1
+
+		if math.isnan(latitude) or math.isnan(longitude) or math.isnan(altitude):
+			flag = 0
+
+	# Set info
+	if latitude < 0.0:
+		lat_sym = 'S'
+		latitude = math.fabs(latitude)
+	if longitude < 0.0:
+		lon_sym = 'W'
+		longitude = math.fabs(longitude)
+        alt_sym = 'm'
+
+	# Covert DATE
+
+	# Get time from GPS
+	utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+	# Timezone from system
+	from_zone = tz.tzutc()
+	to_zone = tz.tzlocal()
+
+	# Give timezone
+	utc_time = utc_time.replace(tzinfo=from_zone)
+
+	# Convert time zone
+	local_time = utc_time.astimezone(to_zone)
+
+	# Rewrite UTC time
+	utc_cur_date = utc_time.strftime('%d/%m/%Y')
+	utc_cur_time = utc_time.strftime('%H:%M:%S')
+	utc_cur_zone = utc_time.strftime('%Z')
+
+	# Rewrite LOCAL time
+	local_cur_date = local_time.strftime('%d/%m/%Y')
+        local_cur_time = local_time.strftime('%H:%M:%S')
+       	local_cur_zone = local_time.strftime('%Z')
+
+	# Write data to JSON
+	json_string = json.dumps([latitude, lat_sym, longitude, lon_sym, altitude, alt_sym, utc_cur_date, utc_cur_time, utc_cur_zone, local_cur_date, local_cur_time, local_cur_zone])
+	if (json_string == "null"):
+                return []
+        else:
+             	return json_string
+
+# ------------ INDIWEBSERVER ------------------
+
 # run(app, host='0.0.0.0', port=8080, debug=True, reloader=True)
-run(app, host='0.0.0.0', port=8624, debug=True)
+# run(app, host=str(my_ip), port=8624, debug=True)
+run(app, host='10.0.0.1', port=8624, debug=True)
+
+# ----------- EXIT GPS -------------
+gpsp.running = False
+gpsp.join()
+

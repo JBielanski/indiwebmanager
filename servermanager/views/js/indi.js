@@ -1,7 +1,9 @@
 // Startup function
 $(function() {
     loadCurrentProfileDrivers();
-    getStatus();
+    getStatus(); // Get status
+    getSensorsAM2302(); // Get temperature/humidity data from am2302
+    getSensorsGPS(); // Get GPS data from NEO-6M/7M GPS
 
     $("#drivers_list").change(function() {
         var name = $("#profiles option:selected").text();
@@ -275,3 +277,64 @@ function getActiveDrivers() {
     });
 
 }
+
+// ------------- RASPBERRY PI SENSORS ----------------------------
+
+// Get TEMPERATURE && HUMIDITY
+function getSensorsAM2302() {
+
+    $.getJSON("/api/sensors/am2302", function(data) {
+	var msg = "<h4 class='alert alert-info'>";
+	msg += "Temperature: <b>";
+	msg += data[0];
+	msg += "</b> &#8451";
+	msg += "</h4>";
+
+	msg += "<h4 class='alert alert-info'>";
+	msg += "Humidity: <b>";
+       	msg += data[1];
+       	msg += "</b> %";
+       	msg += "</h4>";
+
+	$("#sensors_am2302_notify").html(msg);
+    });
+}
+
+// Get GPS Data
+function getSensorsGPS() {
+
+    $.getJSON("/api/sensors/gps/gps", function(data) {
+        var msg = "<h4 class='alert alert-info'>";
+	msg += "Coordinates: <b>";
+	msg += data[0] + " ";
+	msg += data[1] + " ";
+	msg += data[2] + " ";
+	msg += data[3];
+	msg += "</b></h4>"
+
+	msg += "<h4 class='alert alert-info'>";
+	msg += "Altitude: <b>"
+	msg += data[4] + " ";
+	msg += data[5];
+	msg += "</b></h4>";
+
+	msg += "<h4 class='alert alert-info'>";
+	msg += "Time: <b> ";
+	msg += data[8] + " ";
+	msg += data[6] + " ";
+	msg += data[7];
+	msg += "</b></h4>";
+
+	msg += "<h4 class='alert alert-info'>";
+     	msg += "Time: <b>";
+     	msg += data[11] + " ";
+	msg += data[9] + " ";
+	msg += data[10];
+	msg += "</b></h4>";
+
+        $("#sensors_gps_notify").html(msg);
+
+    });
+
+}
+
