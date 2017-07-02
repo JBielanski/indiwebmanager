@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "INDI service installation script"
+
+if [ $EUID = 0 ]; then
+
+    #Copy files
+    cp -v sbin/indi{webserver,server} /usr/local/sbin/
+    cp -v indiwebserver /etc/init.d/
+    cp -v indi.conf /etc/
+
+    #Change privilages
+    chmod 755 /usr/local/sbin/indi{webserver,server}
+    chmod 755 /etc/init.d/indiwebserver
+
+    #Add service to system
+    rc-update add indiwebserver default
+
+else
+    echo "You must be a root!!!"
+fi
+

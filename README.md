@@ -31,6 +31,190 @@ Then using your favorite web browser, go to http://localhost:8624 if the INDI We
 
 # Auto Start
 
+## OPENRC
+
+To enable the INDI Web Manager to automatically start after a system reboot, a openrc service file is provided for your convenience:
+
+```
+#!/sbin/openrc-run
+# /etc/init.d/indiwebserver
+#
+# INDI webserver startup script
+# Service script: need /usr/local/sbin/indiwebserver
+#
+
+name=$RC_SVCNAME
+command="/usr/local/sbin/indiwebserver"
+command_args=""
+command_user="root"
+start_stop_daemon_args="--args-for-start-stop-daemon"
+command_background="yes"
+
+depend() {
+        need net.eth0
+	need ntp-client
+}
+
+start() {
+    ebegin "Starting INDI WEBserver"
+    start-stop-daemon --background --start --exec \
+    		      /usr/local/sbin/indiwebserver start \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+
+stop() {
+    ebegin "Stoping INDI WEBserver"
+    start-stop-daemon --stop --exec \
+		      /usr/local/sbin/indiwebserver stop \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+
+restart() {
+    ebegin "Restarting INDI WEBserver"
+    start-stop-daemon --restart --exec \
+		      /usr/local/sbin/indiwebserver restart \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+```
+
+and starting BASH script:
+
+```
+#!/bin/sh
+# /etc/init.d/indiwebserver
+#
+# INDI webserver startup script
+#
+
+SCRIPT="$0"
+LOCKFILE="/var/run/indiwebserver.pid"
+IP="10.0.0.1"
+PORT="8624"
+
+# Check python exist
+if [ ! -x /usr/bin/python2 ]; then
+    echo "Python 2.x has not found in system!!! Exit!!!"
+    exit -1
+fi
+
+# Check tools
+if [ ! -f /usr/local/lib/servermanager/drivermanager.py ] || [ ! -f /usr/local/lib/servermanager/autostart.py ]; then
+    echo "Server has not existed in /usr/local/lib/servermanager/ directory, please download it first from https://github.com/knro/indiwebmanager !!! Exit!!!"
+    exit -1
+fi
+
+# -------------------------
+# NETWORK INTERFACE
+# -------------------------
+case "$2" in
+
+	#ETH0
+	eth0)
+		IP="10.0.0.1"
+		echo "Interface eth0 with ip: $IP"
+		;;
+
+	#WLAN0
+	wlan0)
+		IP=`ifconfig wlan0 | grep "inet " | awk -F'[: ]+' '{ print $3 }'`
+		echo "Interface wlan0 with ip: $IP"
+		;;
+
+	*)
+		IP="10.0.0.1"
+		echo "Default interface eth0 with ip: $IP"
+		;;
+esac
+
+# -------------------------
+# INDIWEBSERVICE functions:
+# -------------------------
+case "$1" in
+
+    # Run service
+    start)
+	PID="0"
+	if [ -f ${LOCKFILE} ]; then
+	    PID=`cat $LOCKFILE`
+	fi
+	if [ ${PID} = 0 ]; then
+	    echo "-> Starting INDI WEBserver"
+
+	    # Run server as root user
+	    /usr/bin/python2 /usr/local/lib/servermanager/drivermanager.py $IP & echo $! > ${LOCKFILE} &
+
+	    echo "-> INDI WEBserver is running..."
+	    echo "-> Server address with LAN connection is: http://${IP}:${PORT}"
+
+	else
+	    echo "-> INDI WEBserver is running with pid ${PID}..."
+	    echo "-> Server address with LAN connection is: http://${IP}:${PORT}"
+	fi
+	;;
+
+    # Stop service
+    stop)
+	PID="0"
+	if [ -f ${LOCKFILE} ]; then
+	    PID=`cat $LOCKFILE`
+	fi
+	if [ ${PID} != 0 ]; then
+	    echo "-> Stop INDI WEBserver"
+
+	    # Kill all astropi uses processes
+	    kill -9 ${PID}
+	    rm -f ${LOCKFILE}
+
+	    echo "-> INDI WEBserver is stopped"
+
+	else
+	    echo "-> INDI WEBserver is already stopped"
+	fi
+	;;
+
+
+    # Restart service
+    restart)
+	$SCRIPT stop && $SCRIPT start "$2"
+	;;
+
+    # Status of service
+    status)
+	PID="0"
+	if [ -f ${LOCKFILE} ]; then
+	    PID=`cat $LOCKFILE`
+	fi
+
+	if [ ${PID} != 0 ]; then
+	    echo "-> INDI WEBserver is running with pid ${PID} on ${IP}:${PORT}"
+	else
+	    echo "INDI WEBserver is NOT running"
+	fi
+	;;
+
+    *)
+	echo "INDI WEBserver"
+	echo "Usage: /etc/init.d/indiwebserver {start|stop|restart|status}"
+	;;
+esac
+
+exit 0
+```
+
+To install scripts please call INSTALL bash script from openrc directory:
+
+```
+$ cd openrc
+$ sudo bash INSTALL
+```
+
+
+
+## SYSTEMD
+
 To enable the INDI Web Manager to automatically start after a system reboot, a systemd service file is provided for your convenience:
 
 ```

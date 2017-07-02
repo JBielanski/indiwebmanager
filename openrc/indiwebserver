@@ -1,0 +1,43 @@
+#!/sbin/openrc-run
+# /etc/init.d/indiwebserver
+#
+# INDI webserver startup script
+# Service script: need /usr/local/sbin/indiwebserver
+#
+
+name=$RC_SVCNAME
+command="/usr/local/sbin/indiwebserver"
+command_args=""
+command_user="root"
+start_stop_daemon_args="--args-for-start-stop-daemon"
+command_background="yes"
+
+depend() {
+        need net.eth0
+	need ntp-client
+}
+
+start() {
+    ebegin "Starting INDI WEBserver"
+    start-stop-daemon --background --start --exec \
+    		      /usr/local/sbin/indiwebserver start \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+
+stop() {
+    ebegin "Stoping INDI WEBserver"
+    start-stop-daemon --stop --exec \
+		      /usr/local/sbin/indiwebserver stop \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+
+restart() {
+    ebegin "Restarting INDI WEBserver"
+    start-stop-daemon --restart --exec \
+		      /usr/local/sbin/indiwebserver restart \
+		      --pidfile /var/run/indiwebserver.pid
+    eend $?
+}
+
