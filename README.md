@@ -8,15 +8,27 @@ INDI Web Manager is a simple Web Application to manage [INDI](http://www.indilib
 
 INDI Library must be installed on the target system. The Web Application is based on [Bottle Py](http://bottlepy.org) micro-framework. It has a built-in webserver and by default listens on port 8624. Install the pre-requisites:
 
+##GENTOO
+
 ```
-$ sudo apt-get -y install gpsd python-requests python-psutil python-bottle
+$ sudo apt-get -y install gpsd python-requests python-psutil python-bottle python-gps python-dateutil python-tz
 ```
 
-Next install Adafruit_Python_DHT:
-
-[Adafruit_Python_DHT](https://github.com/adafruit/Adafruit_Python_DHT)
+Next install Pthon Adafruit DHT: [Adafruit_Python_DHT](https://github.com/adafruit/Adafruit_Python_DHT)
 
 Copy the **servermanager** folder to your home directory $(HOME) or any folder where the user has read and write access.
+
+##GENTOO
+
+Run as a ROOT user:
+
+```
+$ emerge -av sci-geosciences/gpsd app-misc/dateutils dev-python/python-dateutil dev-python/psutil dev-python/bottle dev-python/requests dev-python/pytz
+```
+
+Next install Pthon Adafruit DHT: [Adafruit_Python_DHT](https://github.com/adafruit/Adafruit_Python_DHT)
+
+Copy the **servermanager** folder to /usr/local/lib/ directory and and set appropriate privilages for files: 'read' for all files, 'write' for databases files and 'execution' for scripts.
 
 # Usage
 
@@ -31,11 +43,13 @@ Then using your favorite web browser, go to http://localhost:8624 if the INDI We
 
 # Auto Start
 
-## OPENRC
+## OPENRC GENTOO
 
-To enable the INDI Web Manager to automatically start after a system reboot, a openrc service file is provided for your convenience:
+To enable the INDI Web Manager to automatically start after a system reboot, a openrc service file and bash script are provided for your convenience.
+My Raspberry PI is configured for providing INDI service by LAN connection (LAN connection has configured as DHCP router with IP 10.0.0.1).
+WIFI card is using for INTERNET connection.
 
-```
+``` 
 #!/sbin/openrc-run
 # /etc/init.d/indiwebserver
 #
@@ -210,8 +224,6 @@ To install scripts please call INSTALL bash script from openrc directory:
 $ cd openrc
 $ sudo bash INSTALL
 ```
-
-
 
 ## SYSTEMD
 
