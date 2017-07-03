@@ -479,23 +479,42 @@ def get_gps_neo6mgps():
 	alt_sym = 'm'
 
 	# Repeat getting GPS while they are incorrect
+	max_count = 100 # Max waiting in iterations
+	count = 0 # Iteration counter
 	while flag==0:
 		latitude = gpsd.fix.latitude
 		longitude = gpsd.fix.longitude
 		altitude = gpsd.fix.altitude
 		flag = 1
 
+		# Wait NaN received
 		if math.isnan(latitude) or math.isnan(longitude) or math.isnan(altitude):
-			flag = 0
+			flag = 0 # Set flag to 0
+			count = count + 1 # Update couter
+			time.sleep(0.010) # Wait one 10 miliseconds
+			print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if count==max_count:
+				flag = 1 # Set flag to 1 when achived max iteration
+
 
 	# Set info
-	if latitude < 0.0:
+	if math.isnan(latitude):
+		latitude = 'Signal Unavailable'
+		lat_sym = '-'
+	elif latitude < 0.0:
 		lat_sym = 'S'
 		latitude = math.fabs(latitude)
-	if longitude < 0.0:
+	if math.isnan(longitude):
+		longitude = 'Signal Unavailable'
+		lon_sym = '-'
+	elif longitude < 0.0:
 		lon_sym = 'W'
 		longitude = math.fabs(longitude)
-        alt_sym = 'm'
+	if math.isnan(altitude):
+		altitude = 'Signal Unavailable'
+		alt_sym = '-'
+	else:
+        	alt_sym = 'm'
 
 	# Covert DATE
 
