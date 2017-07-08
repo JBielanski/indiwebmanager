@@ -305,32 +305,43 @@ function getSensorsGPS() {
 
     $.getJSON("/api/sensors/gps/gps", function(data) {
         var msg = "<h4 class='alert alert-info'>";
-	msg += "Coordinates: <b>";
+	msg += "Coordinates (DD format): <br><b>";
+	msg += "<span style=\"padding-left:3em\">";
 	msg += data[0] + " ";
-	msg += data[1] + " ";
-	msg += data[2] + " ";
-	msg += data[3];
-	msg += "</b></h4>"
+	msg += data[4] + " ";
+	msg += data[5] + " ";
+	msg += data[9] + "</span></b><br>";
+	msg += "Coordinates (DMS format): <br><b>";
+	msg += "<span style=\"padding-left:3em\"> ";
+	msg += data[1] + " &#176 ";
+	msg += data[2] + " &#39 ";
+	msg += data[3] + " &#34 ";
+	msg += data[4] + "</span><br>";
+	msg += "<span style=\"padding-left:3em\"> ";
+	msg += data[6] + " &#176 ";
+	msg += data[7] + " &#39 ";
+	msg += data[8] + " &#34 ";
+	msg += data[9] + "</span>";
+	msg += "</b></h4>";
 
 	msg += "<h4 class='alert alert-info'>";
 	msg += "Altitude: <b>"
-	msg += data[4] + " ";
-	msg += data[5];
+	msg += data[10] + " ";
+	msg += data[11];
 	msg += "</b></h4>";
 
 	msg += "<h4 class='alert alert-info'>";
-	msg += "Time: <b> ";
-	msg += data[8] + " ";
-	msg += data[6] + " ";
-	msg += data[7];
-	msg += "</b></h4>";
-
-	msg += "<h4 class='alert alert-info'>";
-     	msg += "Time: <b>";
-     	msg += data[11] + " ";
-	msg += data[9] + " ";
-	msg += data[10];
-	msg += "</b></h4>";
+	msg += "Time: <b><br>";
+	msg += "<span style=\"padding-left:3em\">";
+	msg += data[14] + " ";
+	msg += data[12] + " ";
+	msg += data[13];
+	msg += "</span><br>";
+	msg += "<span style=\"padding-left:3em\">";
+	msg += data[17] + " ";
+	msg += data[15] + " ";
+	msg += data[16];
+	msg += "</span></b></h4>";
 
         $("#sensors_gps_notify").html(msg);
 

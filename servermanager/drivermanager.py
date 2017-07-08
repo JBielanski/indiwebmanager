@@ -472,8 +472,15 @@ def get_gps_neo6mgps():
 
 	# Convert LONGITUDE / LATITUDE / ALTITUDE
 	latitude = 0.0
+	lat_deg = 0
+	lat_min = 0
+	lat_sec = 0.0
 	lat_sym = 'N'
+
 	longitude = 0.0
+	lon_deg = 0
+	lon_min = 0
+	lon_sec = 0.0
 	lon_sym = 'E'
 	altitude = 0.0
 	alt_sym = 'm'
@@ -497,23 +504,47 @@ def get_gps_neo6mgps():
 				flag = 1 # Set flag to 1 when achived max iteration
 
 
-	# Set info
+	# Set info and convert coordinates to format deegres / minutes / seconds
 	if math.isnan(latitude):
-		latitude = 'Signal Unavailable'
-		lat_sym = '-'
-	elif latitude < 0.0:
-		lat_sym = 'S'
-		latitude = math.fabs(latitude)
+		latitude = '-'
+		lat_sym = ' '
+	else:
+		if latitude < 0.0:
+			lat_sym = 'S'
+			latitude = math.fabs(latitude)
+
+		lat_deg = int(latitude)
+		lat_sec = ((latitude-lat_deg)*10000.0)*0.36
+		lat_min = int(lat_sec/60.0)
+		lat_sec = lat_sec-(60*lat_min)
+
+		# Rounding results
+		latitude = round(latitude,6)
+		lat_sec = round(lat_sec,2)
+
 	if math.isnan(longitude):
-		longitude = 'Signal Unavailable'
-		lon_sym = '-'
-	elif longitude < 0.0:
-		lon_sym = 'W'
-		longitude = math.fabs(longitude)
+		longitude = '-'
+		lon_sym = ' '
+	else:
+		if longitude < 0.0:
+			lon_sym = 'W'
+			longitude = math.fabs(longitude)
+
+		lon_deg = int(longitude)
+		lon_sec = ((longitude-lon_deg)*10000)*0.36
+		lon_min = int(lon_sec/60.0)
+		lon_sec = lon_sec-(60*lon_min)
+
+		# Rounding results
+		longitude = round(longitude,6)
+		lon_sec = round(lon_sec,2)
+
 	if math.isnan(altitude):
 		altitude = 'Signal Unavailable'
 		alt_sym = '-'
 	else:
+		# Rounding result
+		altitude = round(altitude,4)
         	alt_sym = 'm'
 
 	# Covert DATE
@@ -542,7 +573,7 @@ def get_gps_neo6mgps():
        	local_cur_zone = local_time.strftime('%Z')
 
 	# Write data to JSON
-	json_string = json.dumps([latitude, lat_sym, longitude, lon_sym, altitude, alt_sym, utc_cur_date, utc_cur_time, utc_cur_zone, local_cur_date, local_cur_time, local_cur_zone])
+	json_string = json.dumps([latitude, lat_deg, lat_min, lat_sec, lat_sym, longitude, lon_deg, lon_min, lon_sec, lon_sym, altitude, alt_sym, utc_cur_date, utc_cur_time, utc_cur_zone, local_cur_date, local_cur_time, local_cur_zone])
 	if (json_string == "null"):
                 return []
         else:
