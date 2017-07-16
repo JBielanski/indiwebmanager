@@ -342,15 +342,28 @@ def get_gps_latitiude():
 	#Convert latitude
 	latitude = 0.0
 	lat_sym = 'N'
+
+	# Repeat getting GPS while they are incorrect
+        max_count = 100 # Max waiting in iterations
+       	count = 0 # Iteration counter
 	while flag==0:
 		latitude = gpsd.fix.latitude
 		flag = 1
 		if math.isnan(latitude):
-			flag = 0
+			flag = 0 # Set flag to 0
+                        count = count + 1 # Update couter
+                        time.sleep(0.010) # Wait one 10 miliseconds
+                        print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+                        if count==max_count:
+                               	flag = 1 # Set flag to 1 when achived max iteration
 
-	if latitude < 0:
-		latitude = math.fabs(latitude)
-		lat_sym = 'E'
+	if math.isnan(latitude):
+		latitude = '-'
+		lat_sym  = ' '
+	else:
+		if latitude < 0:
+			latitude = math.fabs(latitude)
+			lat_sym = 'E'
 
 	json_string = json.dumps([latitude, lat_sym])
         if (json_string == "null"):
@@ -368,15 +381,28 @@ def get_gps_longitude():
 	#Convert longitude
 	longitude = 0.0
 	lon_sym = 'E'
+
+	# Repeat getting GPS while they are incorrect
+       	max_count = 100 # Max waiting in iterations
+        count = 0 # Iteration counter
 	while flag==0:
 		longitude = gpsd.fix.longitude
 		flag = 1
 		if math.isnan(longitude):
-			flag = 0
+			flag = 0 # Set flag to 0
+                        count = count + 1 # Update couter
+                        time.sleep(0.010) # Wait one 10 miliseconds
+                        print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+                        if count==max_count:
+                               	flag = 1 # Set flag to 1 when achived max iteration
 
-	if longitude < 0:
-		longitude = math.fabs(longitude)
-		lon_sym = 'W'
+	if math.isnan(longitude):
+		longitude = '-'
+		lon_sym = ' '
+	else:
+		if longitude < 0:
+			longitude = math.fabs(longitude)
+			lon_sym = 'W'
 
        	json_string = json.dumps([longitude, lon_sym])
         if (json_string == "null"):
@@ -394,18 +420,30 @@ def get_gps_altitude():
 	# Conver altitude
 	altitude = 0.0
 	alt_sym = 'm'
+
+	# Repeat getting GPS while they are incorrect
+	max_count = 100 # Max waiting in iterations
+	count = 0 # Iteration counter
 	while flag==0:
 		altitude = gpsd.fix.altitude
 		flag = 1
 		if math.isnan(altitude):
-			flag = 0
+			flag = 0 # Set flag to 0
+			count = count + 1 # Update couter
+			time.sleep(0.010) # Wait one 10 miliseconds
+			print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if count==max_count:
+				flag = 1 # Set flag to 1 when achived max iteration
+
+	if math.isnan(altitude):
+		altitude = '-'
+		alt_sym = ' '
 
         json_string = json.dumps([altitude, alt_sym])
         if (json_string == "null"):
                 return []
         else:
              	return json_string
-
 
 
 # Get UTC time
@@ -540,8 +578,8 @@ def get_gps_neo6mgps():
 		lon_sec = round(lon_sec,2)
 
 	if math.isnan(altitude):
-		altitude = 'Signal Unavailable'
-		alt_sym = '-'
+		altitude = '-'
+		alt_sym = ' '
 	else:
 		# Rounding result
 		altitude = round(altitude,4)
@@ -582,8 +620,8 @@ def get_gps_neo6mgps():
 # ------------ INDIWEBSERVER ------------------
 
 # run(app, host='0.0.0.0', port=8080, debug=True, reloader=True)
-# run(app, host=str(my_ip), port=8624, debug=True)
-run(app, host='10.0.0.1', port=8624, debug=True)
+run(app, host=str(my_ip), port=8624, debug=True)
+#run(app, host='10.0.0.1', port=8624, debug=True)
 
 # ----------- EXIT GPS -------------
 gpsp.running = False

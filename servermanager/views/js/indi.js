@@ -349,3 +349,54 @@ function getSensorsGPS() {
 
 }
 
+// Get WEATHER
+function getWeather()
+{
+	var wservice = document.getElementById("weather").value;
+
+	// Get GPS data
+	$.getJSON("/api/sensors/gps/gps", function(data) {
+
+		// Test GPS data
+		if(data[1] != '-' && data[6] != '-') {
+
+			// Select weather service
+			var link = "https:\/\/"; //https://m.meteo.pl/search/pl?typePL=coords&wspolrzednePL=N 49° 36'  E 19° 40'&prognozaPL=60
+			if (wservice == "icm_meteo_60") {
+				link += "m.meteo.pl\/search\/pl?typePL=coords&wspolrzednePL=";
+				link += data[4] + " ";
+				link += data[1] + "%C2%B0 ";
+				link += data[2] + "' ";
+				link += data[9] + " ";
+				link += data[6] + "%C2%B0 ";
+				link += data[7] + "'";
+				link += "&prognozaPL=60";
+			}
+			else if(wservice == "icm_meteo_84") {
+				link += "m.meteo.pl\/search\/pl?typePL=coords&wspolrzednePL=";
+                	        link += data[4] + " ";
+                	        link += data[1] + "%C2%B0 ";
+                	        link += data[2] + "' ";
+                	        link += data[9] + " ";
+                	        link += data[6] + "%C2%B0 ";
+                	        link += data[7] + "'";
+                	        link += "&prognozaPL=84";
+			}
+
+			// Open link
+			var win = window.open(decodeURI(link), '_blank');
+			if (win) {
+				//Browser has allowed it to be opened
+				win.focus();
+			} else {
+				//Browser has blocked it
+				alert('Please allow popups for this website');
+			}
+		} else {
+			//GPS Alert
+                        alert('GPS received wrong data');
+		}
+
+	});
+}
+
