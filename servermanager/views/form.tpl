@@ -127,6 +127,7 @@
 						<select id="weather" class="form-control">
 							<option value="icm_meteo_60">ICM Meteo 60h</option>
 							<option value="icm_meteo_84">ICM Meteo 84h</option>
+							<option value="sat_24">Sat 24</option>
 						</select>
 
 						<span class="input-group-btn">

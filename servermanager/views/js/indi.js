@@ -357,12 +357,12 @@ function getWeather()
 	// Get GPS data
 	$.getJSON("/api/sensors/gps/gps", function(data) {
 
-		// Test GPS data
-		if(data[1] != '-' && data[6] != '-') {
+		// Select weather service
+		var link = "https:\/\/"; //https://m.meteo.pl/search/pl?typePL=coords&wspolrzednePL=N 49° 36'  E 19° 40'&prognozaPL=60
+		if (wservice == "icm_meteo_60") {
+			// Test GPS data
+               		if(data[1] != '-' && data[6] != '-') {
 
-			// Select weather service
-			var link = "https:\/\/"; //https://m.meteo.pl/search/pl?typePL=coords&wspolrzednePL=N 49° 36'  E 19° 40'&prognozaPL=60
-			if (wservice == "icm_meteo_60") {
 				link += "m.meteo.pl\/search\/pl?typePL=coords&wspolrzednePL=";
 				link += data[4] + " ";
 				link += data[1] + "%C2%B0 ";
@@ -371,8 +371,13 @@ function getWeather()
 				link += data[6] + "%C2%B0 ";
 				link += data[7] + "'";
 				link += "&prognozaPL=60";
+			} else {
+				link += "m.meteo.pl";
 			}
-			else if(wservice == "icm_meteo_84") {
+		}
+		else if(wservice == "icm_meteo_84") {
+			// Test GPS data
+			if(data[1] != '-' && data[6] != '-') {
 				link += "m.meteo.pl\/search\/pl?typePL=coords&wspolrzednePL=";
                 	        link += data[4] + " ";
                 	        link += data[1] + "%C2%B0 ";
@@ -381,22 +386,24 @@ function getWeather()
                 	        link += data[6] + "%C2%B0 ";
                 	        link += data[7] + "'";
                 	        link += "&prognozaPL=84";
-			}
-
-			// Open link
-			var win = window.open(decodeURI(link), '_blank');
-			if (win) {
-				//Browser has allowed it to be opened
-				win.focus();
 			} else {
-				//Browser has blocked it
-				alert('Please allow popups for this website');
+				link += "m.meteo.pl";
 			}
-		} else {
-			//GPS Alert
-                        alert('GPS received wrong data');
+		}
+		else if(wservice == "sat_24") {
+			link = "http:\/\/en.sat24.com\/en";
 		}
 
+
+		// Open link
+		var win = window.open(decodeURI(link), '_blank');
+		if (win) {
+			//Browser has allowed it to be opened
+			win.focus();
+		} else {
+			//Browser has blocked it
+			alert('Please allow popups for this website');
+		}
 	});
 }
 
