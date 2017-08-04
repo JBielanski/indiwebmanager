@@ -3,7 +3,13 @@
 from bottle import Bottle, run, template, static_file, request
 from servermanager import startServer, stopServer, isServerRunning, getRunningDrivers
 from parsedrivers import driversList, findDriverByLabel, DeviceDriver
+
+# Adafruit DHT python from https://github.com/adafruit/Adafruit_Python_DHT
 from Adafruit_DHT import read_retry
+
+# RaspberryPI GPIO Python from https://sourceforge.net/projects/raspberry-gpio-python/
+import RPi.GPIO as GPIO
+
 from datetime import datetime
 from dateutil import tz
 from gps import *
@@ -267,7 +273,9 @@ def get_custom_drivers(item):
     else:
         return json_string
 
-# ---------- Extra RaspberryPI 3 Functions -----------
+# ------------------- Extra RaspberryPI 3 Functions ------------------------
+
+# ----------------- TEMPERATURE/HUMIDITY - AM2302 (DHT22) ------------------
 
 #
 # Added support for Adafruit AM2302 Temeperature/Humidity sensor
@@ -310,7 +318,18 @@ def get_am2302():
         else:
              	return json_string
 
-# ----------- GPS -------------
+# ----------------------- PRESSURE DFRobot BMP180 --------------------------
+
+#
+# For data reading is used RaspberryPI Python GPIO library
+# https://sourceforge.net/projects/raspberry-gpio-python/
+#
+
+
+
+
+
+# ----------------------- GPS WAVESHARE NEO-6M/7M --------------------------
 
 gpsd = None #seting the global variable
 
@@ -338,6 +357,7 @@ def get_gps_latitiude():
 
 	#Test flag
 	flag = 0
+	error = 0
 
 	#Convert latitude
 	latitude = 0.0
@@ -353,11 +373,13 @@ def get_gps_latitiude():
 			flag = 0 # Set flag to 0
                         count = count + 1 # Update couter
                         time.sleep(0.010) # Wait one 10 miliseconds
-                        print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if (count%25) == 0:
+                        	print('Can not get GPS data, attemt: ' + repr(count) + '\n')
                         if count==max_count:
                                	flag = 1 # Set flag to 1 when achived max iteration
+				error = 1 # Set error to 1
 
-	if math.isnan(latitude):
+	if error == 1:
 		latitude = '-'
 		lat_sym  = ' '
 	else:
@@ -392,11 +414,13 @@ def get_gps_longitude():
 			flag = 0 # Set flag to 0
                         count = count + 1 # Update couter
                         time.sleep(0.010) # Wait one 10 miliseconds
-                        print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if (count%25) == 0:
+                        	print('Can not get GPS data, attemt: ' + repr(count) + '\n')
                         if count==max_count:
                                	flag = 1 # Set flag to 1 when achived max iteration
+				error = 1 # Set error to 1
 
-	if math.isnan(longitude):
+	if error == 1:
 		longitude = '-'
 		lon_sym = ' '
 	else:
@@ -431,11 +455,13 @@ def get_gps_altitude():
 			flag = 0 # Set flag to 0
 			count = count + 1 # Update couter
 			time.sleep(0.010) # Wait one 10 miliseconds
-			print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if (count%25) == 0:
+				print('Can not get GPS data, attemt: ' + repr(count) + '\n')
 			if count==max_count:
 				flag = 1 # Set flag to 1 when achived max iteration
+				error = 1 # Set error to 1
 
-	if math.isnan(altitude):
+	if error == 1:
 		altitude = '-'
 		alt_sym = ' '
 
@@ -507,6 +533,7 @@ def get_gps_neo6mgps():
 
 	# Test flag
 	flag = 0
+	error = 0
 
 	# Convert LONGITUDE / LATITUDE / ALTITUDE
 	latitude = 0.0
@@ -537,16 +564,37 @@ def get_gps_neo6mgps():
 			flag = 0 # Set flag to 0
 			count = count + 1 # Update couter
 			time.sleep(0.010) # Wait one 10 miliseconds
-			print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if (count%25) == 0:
+				print('Can not get GPS data, attemt: ' + repr(count) + '\n')
 			if count==max_count:
 				flag = 1 # Set flag to 1 when achived max iteration
-
+				error = 1 # Set error to 1
 
 	# Set info and convert coordinates to format deegres / minutes / seconds
-	if math.isnan(latitude):
+	if error == 1:
+		# Latitude
 		latitude = '-'
 		lat_sym = ' '
+
+		# Longitude
+		longitude = '-'
+                lon_sym = ' '
+
+		# Altitude
+		altitude = '-'
+                alt_sym = ' '
+
+		# Date
+		utc_cur_date = '-'
+                utc_cur_time = '-'
+                utc_cur_zone = '-'
+
+             	local_cur_date = '-'
+                local_cur_time = '-'
+                local_cur_zone = '-'
+
 	else:
+		# Latitude
 		if latitude < 0.0:
 			lat_sym = 'S'
 			latitude = math.fabs(latitude)
@@ -560,10 +608,7 @@ def get_gps_neo6mgps():
 		latitude = round(latitude,6)
 		lat_sec = round(lat_sec,2)
 
-	if math.isnan(longitude):
-		longitude = '-'
-		lon_sym = ' '
-	else:
+		# Longitude
 		if longitude < 0.0:
 			lon_sym = 'W'
 			longitude = math.fabs(longitude)
@@ -577,38 +622,36 @@ def get_gps_neo6mgps():
 		longitude = round(longitude,6)
 		lon_sec = round(lon_sec,2)
 
-	if math.isnan(altitude):
-		altitude = '-'
-		alt_sym = ' '
-	else:
+		# Altitude
+
 		# Rounding result
 		altitude = round(altitude,4)
         	alt_sym = 'm'
 
-	# Covert DATE
+		# Covert DATE
 
-	# Get time from GPS
-	utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+		# Get time from GPS
+		utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
 
-	# Timezone from system
-	from_zone = tz.tzutc()
-	to_zone = tz.tzlocal()
+		# Timezone from system
+		from_zone = tz.tzutc()
+		to_zone = tz.tzlocal()
 
-	# Give timezone
-	utc_time = utc_time.replace(tzinfo=from_zone)
+		# Give timezone
+		utc_time = utc_time.replace(tzinfo=from_zone)
 
-	# Convert time zone
-	local_time = utc_time.astimezone(to_zone)
+		# Convert time zone
+		local_time = utc_time.astimezone(to_zone)
 
-	# Rewrite UTC time
-	utc_cur_date = utc_time.strftime('%d/%m/%Y')
-	utc_cur_time = utc_time.strftime('%H:%M:%S')
-	utc_cur_zone = utc_time.strftime('%Z')
+		# Rewrite UTC time
+		utc_cur_date = utc_time.strftime('%d/%m/%Y')
+		utc_cur_time = utc_time.strftime('%H:%M:%S')
+		utc_cur_zone = utc_time.strftime('%Z')
 
-	# Rewrite LOCAL time
-	local_cur_date = local_time.strftime('%d/%m/%Y')
-        local_cur_time = local_time.strftime('%H:%M:%S')
-       	local_cur_zone = local_time.strftime('%Z')
+		# Rewrite LOCAL time
+		local_cur_date = local_time.strftime('%d/%m/%Y')
+        	local_cur_time = local_time.strftime('%H:%M:%S')
+       		local_cur_zone = local_time.strftime('%Z')
 
 	# Write data to JSON
 	json_string = json.dumps([latitude, lat_deg, lat_min, lat_sec, lat_sym, longitude, lon_deg, lon_min, lon_sec, lon_sym, altitude, alt_sym, utc_cur_date, utc_cur_time, utc_cur_zone, local_cur_date, local_cur_time, local_cur_zone])
