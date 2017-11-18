@@ -10,6 +10,9 @@ from Adafruit_DHT import read_retry
 # RaspberryPI GPIO Python from https://sourceforge.net/projects/raspberry-gpio-python/
 import RPi.GPIO as GPIO
 
+# LCD support
+import smbus
+
 from datetime import datetime
 from dateutil import tz
 from gps import *
@@ -275,6 +278,92 @@ def get_custom_drivers(item):
 
 # ------------------- Extra RaspberryPI 3 Functions ------------------------
 
+# ------------------------ LCD CONFIGURATION -------------------------------
+# Define some device parameters
+I2C_ADDR  = 0x27 # I2C device address
+LCD_WIDTH = 16   # Maximum characters per line
+
+# Define some device constants
+LCD_CHR = 1 # Mode - Sending data
+LCD_CMD = 0 # Mode - Sending command
+
+LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
+LCD_LINE_3 = 0x94 # LCD RAM address for the 3rd line
+LCD_LINE_4 = 0xD4 # LCD RAM address for the 4th line
+
+LCD_BACKLIGHT  = 0x08  # On
+#LCD_BACKLIGHT = 0x00  # Off
+
+ENABLE = 0b00000100 # Enable bit
+
+# Timing constants
+E_PULSE = 0.0002
+E_DELAY = 0.0002
+
+#Open I2C interface
+#bus = smbus.SMBus(0)  # Rev 1 Pi uses 0
+bus = smbus.SMBus(1) # Rev 2 Pi uses 1
+
+# LCD is initialized
+LCD_Initialized = False
+
+# Initialize LCD
+def lcd_init():
+	# Initialise display
+	lcd_byte(0x33,LCD_CMD) # 110011 Initialise
+	lcd_byte(0x32,LCD_CMD) # 110010 Initialise
+	lcd_byte(0x06,LCD_CMD) # 000110 Cursor move direction
+	lcd_byte(0x0C,LCD_CMD) # 001100 Display On,Cursor Off, Blink Off
+	lcd_byte(0x28,LCD_CMD) # 101000 Data length, number of lines, font size
+	lcd_clear()
+	time.sleep(E_DELAY)
+	LCD_Iitialized = True
+
+# Clear display
+def lcd_clear():
+	lcd_byte(0x01,LCD_CMD) # 000001 Clear display
+	time.sleep(E_DELAY)
+
+# Send data to pins
+def lcd_byte(bits, mode):
+	# Send byte to data pins
+	# bits = the data
+	# mode = 1 for data
+	#        0 for command
+
+	bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT
+	bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT
+
+	# High bits
+	bus.write_byte(I2C_ADDR, bits_high)
+	lcd_toggle_enable(bits_high)
+
+	# Low bits
+	bus.write_byte(I2C_ADDR, bits_low)
+	lcd_toggle_enable(bits_low)
+
+# Toggle enable
+def lcd_toggle_enable(bits):
+	# Toggle enable
+	time.sleep(E_DELAY)
+	bus.write_byte(I2C_ADDR, (bits | ENABLE))
+	time.sleep(E_PULSE)
+	bus.write_byte(I2C_ADDR,(bits & ~ENABLE))
+	time.sleep(E_DELAY)
+
+# Send string to dsplay
+def lcd_string(message,line):
+	# Send string to display
+
+	message = message.ljust(LCD_WIDTH," ")
+
+	lcd_byte(line, LCD_CMD)
+
+	for i in range(LCD_WIDTH):
+		lcd_byte(ord(message[i]),LCD_CHR)
+
+
 # ----------------- TEMPERATURE/HUMIDITY - AM2302 (DHT22) ------------------
 
 #
@@ -289,8 +378,8 @@ dht_sensor = 22
 dht_pin = '25'
 
 # Get temperature
-@app.get('/api/sensors/temperature')
-def get_temperature():
+@app.get('/api/sensors/temperature_am2302')
+def get_temperature_am2302():
 	humidity, temperature = read_retry(dht_sensor, dht_pin)
 	json_string = json.dumps(float('%.3f' % (temperature)))
 	if (json_string == "null"):
@@ -299,8 +388,8 @@ def get_temperature():
 		return json_string
 
 # Get humidity
-@app.get('/api/sensors/humidity')
-def get_humidity():
+@app.get('/api/sensors/humidity_am2302')
+def get_humidity_am2302():
        	humidity, temperature = read_retry(dht_sensor, dht_pin)
        	json_string = json.dumps(float('%.3f' % (humidity)))
         if (json_string == "null"):
@@ -318,6 +407,11 @@ def get_am2302():
         else:
              	return json_string
 
+def get_am2302_string():
+	humidity, temperature = read_retry(dht_sensor, dht_pin)
+	data = "T: %.1fC H: %.0f%%" % (temperature, humidity)
+	return data
+
 # ----------------------- PRESSURE DFRobot BMP180 --------------------------
 
 #
@@ -326,7 +420,40 @@ def get_am2302():
 #
 
 
+# BMP180 - driver
+def bmp180_driver(bmp_pin):
+	# Driver should be implemented
+	return [ 1000.0, 10.0 ];
 
+# Get pressure
+@app.get('/api/sensors/pressure_bmp180')
+def get_pressure_bmp180():
+	pressure, temperature = bmp180_driver(10)
+	json_string = json.dumps(float('%.3f' % (pressure)))
+	if (json_string == "null"):
+		return []
+	else:
+		return json_string
+
+# Get temperature
+@app.get('/api/sensors/temperature_bmp180')
+def get_temperature_bmp180():
+	pressure, temperature = bmp180_driver(10)
+	json_string = json.dumps(float('%.3f' % (temperature)))
+	if (json_string == "null"):
+		return []
+	else:
+		return json_string
+
+# Get pressure and temperature
+@app.get('/api/sensors/bmp180')
+def get_bmp180():
+	pressure, temperature = bmp180_driver(10)
+	json_string = json.dumps([float('%.3f' % (pressure)), float('%.3f' % (temperature))])
+	if (json_string == "null"):
+		return []
+	else:
+		return json_string
 
 
 # ----------------------- GPS WAVESHARE NEO-6M/7M --------------------------
@@ -660,6 +787,189 @@ def get_gps_neo6mgps():
         else:
              	return json_string
 
+# Return strings for LCD
+def get_gps_neo6mgps_string():
+
+	#degree_sign = u'\u00b0'
+	#degree_sign = u'\u030a'
+	degree_sign = u'\u006f'
+
+	# Test flag
+	flag = 0
+	error = 0
+
+	# Convert LONGITUDE / LATITUDE / ALTITUDE
+	latitude = 0.0
+	lat_deg = 0
+	lat_min = 0
+	lat_sec = 0.0
+	lat_sym = 'N'
+
+	longitude = 0.0
+	lon_deg = 0
+	lon_min = 0
+	lon_sec = 0.0
+	lon_sym = 'E'
+	altitude = 0.0
+	alt_sym = 'm'
+
+	# Repeat getting GPS while they are incorrect
+	max_count = 100 # Max waiting in iterations
+	count = 0 # Iteration counter
+	while flag==0:
+		latitude = gpsd.fix.latitude
+		longitude = gpsd.fix.longitude
+		altitude = gpsd.fix.altitude
+		flag = 1
+
+		# Wait NaN received
+		if math.isnan(latitude) or math.isnan(longitude) or math.isnan(altitude):
+			flag = 0 # Set flag to 0
+			count = count + 1 # Update couter
+			time.sleep(0.010) # Wait one 10 miliseconds
+			if (count%25) == 0:
+				print('Can not get GPS data, attemt: ' + repr(count) + '\n')
+			if count==max_count:
+				flag = 1 # Set flag to 1 when achived max iteration
+				error = 1 # Set error to 1
+
+	# Set info and convert coordinates to format deegres / minutes / seconds
+	if error == 1:
+		# Latitude
+		latitude = '-'
+		lat_sym = ' '
+
+		# Longitude
+		longitude = '-'
+        	lon_sym = ' '
+
+		# Altitude
+		altitude = '-'
+        	alt_sym = ' '
+
+		# Date
+		utc_cur_date = '-'
+        	utc_cur_time = '-'
+        	utc_cur_zone = '-'
+
+        	local_cur_date = '-'
+        	local_cur_time = '-'
+        	local_cur_zone = '-'
+
+	else:
+		# Latitude
+		if latitude < 0.0:
+			lat_sym = 'S'
+			latitude = math.fabs(latitude)
+
+		lat_deg = int(latitude)
+		lat_sec = ((latitude-lat_deg)*10000.0)*0.36
+		lat_min = int(lat_sec/60.0)
+		lat_sec = lat_sec-(60*lat_min)
+
+		# Rounding results
+		latitude = round(latitude,6)
+		lat_sec = round(lat_sec,2)
+
+		# Longitude
+		if longitude < 0.0:
+			lon_sym = 'W'
+			longitude = math.fabs(longitude)
+
+		lon_deg = int(longitude)
+		lon_sec = ((longitude-lon_deg)*10000)*0.36
+		lon_min = int(lon_sec/60.0)
+		lon_sec = lon_sec-(60*lon_min)
+
+		# Rounding results
+		longitude = round(longitude,6)
+		lon_sec = round(lon_sec,2)
+
+		# Altitude
+
+		# Rounding result
+		altitude = round(altitude,4)
+        	alt_sym = 'm'
+
+		# Covert DATE
+
+		# Get time from GPS
+		utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+		# Timezone from system
+		from_zone = tz.tzutc()
+		to_zone = tz.tzlocal()
+
+		# Give timezone
+		utc_time = utc_time.replace(tzinfo=from_zone)
+
+		# Convert time zone
+		local_time = utc_time.astimezone(to_zone)
+
+		# Rewrite LOCAL time
+		local_cur_date = local_time.strftime('%d/%m/%Y')
+	       	local_cur_time = local_time.strftime('%H:%M')
+
+	# Create output strings
+	data_coord = "%d%s%d\'%s%d%s%d\'%s" % (lat_deg, degree_sign, lat_min, lat_sym, lon_deg, degree_sign, lon_min, lon_sym)
+	data_alt = "%.1f m" % (altitude)
+	data_time = "%sL%s" % (local_cur_date,local_cur_time)
+
+	return (data_coord, data_alt, data_time)
+
+
+# ------------------LCD CONTROL ---------------
+
+# CLASS OF SCREEN
+lcd_display = None #seting the global variable
+
+# GPS class
+class LCDPoller(threading.Thread):
+        def __init__(self):
+                threading.Thread.__init__(self)
+                global lcd_display #bring it in scope
+                self.current_value = None
+                self.running = True #setting the thread running to true
+
+        def run(self):
+                global lcd_display
+                if (LCD_Initialized == False):
+                       	lcd_init()
+                while lcd_display.running:
+                       	th_string = get_am2302_string()
+                       	gps_coord_string, gps_alt_string, gps_time_string = get_gps_neo6mgps_string()
+
+                       	# Print temperature/humidity and gps time
+                       	co_string = gps_time_string
+
+			#lcd_clear()
+                       	lcd_string(th_string,LCD_LINE_1)
+                       	lcd_string(co_string,LCD_LINE_2)
+
+                       	time.sleep(4)
+
+                       	# Print temperature/humidity and gps coordinates
+                       	co_string = gps_coord_string
+			#lcd_clear()
+                       	lcd_string(th_string,LCD_LINE_1)
+                       	lcd_string(co_string,LCD_LINE_2)
+
+                       	time.sleep(4)
+
+                       	# Print temperature/humidity and gps altitude
+                       	co_string = gps_alt_string
+
+			#lcd_clear()
+                       	lcd_string(th_string,LCD_LINE_1)
+                       	lcd_string(co_string,LCD_LINE_2)
+
+                       	time.sleep(4)
+
+
+# Start GPS
+lcd_display = LCDPoller() # create the thread
+lcd_display.start() # start it up
+
 # ------------ INDIWEBSERVER ------------------
 
 # run(app, host='0.0.0.0', port=8080, debug=True, reloader=True)
@@ -669,4 +979,6 @@ run(app, host=str(my_ip), port=8624, debug=True)
 # ----------- EXIT GPS -------------
 gpsp.running = False
 gpsp.join()
-
+lcd_display.running = False
+lcd_display.join()
+lcd_clear()

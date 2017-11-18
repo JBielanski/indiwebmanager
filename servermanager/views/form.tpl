@@ -18,7 +18,7 @@
 	<script langauge="javascript">
 		window.setInterval("refreshDiv()", 1000);
 		function refreshDiv(){
-			getSensorsAM2302();
+			getSensorsAM2302_BMP180();
 			getSensorsGPS();
 		}
 	</script>
@@ -117,8 +117,8 @@
 
 			<div class="col-sm-6">
 				<div class="form-group">
-					<label>Temperature and Humidity</label>
-					<div id="sensors_am2302_notify" class="well"></div>
+					<label>Temperature, Humidity and Pressure</label>
+					<div id="sensors_am2302_bmp180_notify" class="well"></div>
 				</div>
 
 				<div class="form-group">

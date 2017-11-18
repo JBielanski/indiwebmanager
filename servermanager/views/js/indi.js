@@ -2,7 +2,7 @@
 $(function() {
     loadCurrentProfileDrivers();
     getStatus(); // Get status
-    getSensorsAM2302(); // Get temperature/humidity data from am2302
+    getSensorsAM2302_BMP180(); // Get temperature/humidity data from am2302 and pressure from bmp180
     getSensorsGPS(); // Get GPS data from NEO-6M/7M GPS
 
     $("#drivers_list").change(function() {
@@ -280,11 +280,13 @@ function getActiveDrivers() {
 
 // ------------- RASPBERRY PI SENSORS ----------------------------
 
-// Get TEMPERATURE && HUMIDITY
-function getSensorsAM2302() {
+// Get TEMPERATURE && HUMIDITY && PRESSURE
+function getSensorsAM2302_BMP180() {
+
+    var msg = "<h4 class='alert alert-info'>";
 
     $.getJSON("/api/sensors/am2302", function(data) {
-	var msg = "<h4 class='alert alert-info'>";
+
 	msg += "Temperature: <b>";
 	msg += data[0];
 	msg += "</b> &#8451";
@@ -296,8 +298,21 @@ function getSensorsAM2302() {
        	msg += "</b> %";
        	msg += "</h4>";
 
-	$("#sensors_am2302_notify").html(msg);
     });
+
+    $.getJSON("/api/sensors/bmp180", function(data) {
+
+	msg += "<h4 class='alert alert-info'>";
+        msg += "Pressure: <b>";
+        msg += data[0];
+        msg += "</b> hPa";
+        msg += "</h4>";
+
+	//Print page
+	$("#sensors_am2302_bmp180_notify").html(msg);
+
+    });
+
 }
 
 // Get GPS Data
