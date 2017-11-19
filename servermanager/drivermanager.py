@@ -19,11 +19,16 @@ from gps import *
 from time import *
 import time
 import threading
+from threading import Thread
+from threading import Lock
 import db
 import json
 import os
 import sys
 import socket
+
+# Mutex for threading
+mutex = Lock()
 
 # Validate IP
 def is_valid_ipv4_address(address):
@@ -474,10 +479,6 @@ class GpsPoller(threading.Thread):
     while gpsp.running:
 	gpsd.next() #this will continue to loop and grab EACH set of gpsd info to clear the buffer
 
-# Start GPS
-gpsp = GpsPoller() # create the thread
-gpsp.start() # start it up
-
 # Get latitude
 @app.get('/api/sensors/gps/latitude')
 def get_gps_latitiude():
@@ -494,7 +495,11 @@ def get_gps_latitiude():
         max_count = 100 # Max waiting in iterations
        	count = 0 # Iteration counter
 	while flag==0:
-		latitude = gpsd.fix.latitude
+		mutex.acquire(1)
+		try:
+			latitude = gpsd.fix.latitude
+		finally:
+			mutex.release()
 		flag = 1
 		if math.isnan(latitude):
 			flag = 0 # Set flag to 0
@@ -535,7 +540,11 @@ def get_gps_longitude():
        	max_count = 100 # Max waiting in iterations
         count = 0 # Iteration counter
 	while flag==0:
-		longitude = gpsd.fix.longitude
+		mutex.acquire(1)
+		try:
+			longitude = gpsd.fix.longitude
+		finally:
+			mutex.release()
 		flag = 1
 		if math.isnan(longitude):
 			flag = 0 # Set flag to 0
@@ -576,7 +585,11 @@ def get_gps_altitude():
 	max_count = 100 # Max waiting in iterations
 	count = 0 # Iteration counter
 	while flag==0:
-		altitude = gpsd.fix.altitude
+		mutex.acquire(1)
+		try:
+			altitude = gpsd.fix.altitude
+		finally:
+			mutex.release()
 		flag = 1
 		if math.isnan(altitude):
 			flag = 0 # Set flag to 0
@@ -604,8 +617,12 @@ def get_gps_altitude():
 def get_gps_utctime():
 
 	# Get time from GPS
-        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
-
+	utc_time = "2017-01-01T0:0:0.0.UTC"
+	mutex.acquire(1)
+	try:
+	        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+	finally:
+		mutex.release()
        	# Timezone from system
         from_zone = tz.tzutc()
 
@@ -629,7 +646,12 @@ def get_gps_utctime():
 def get_gps_localtime():
 
 	# Get time from GPS
-        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+	utc_time = "2017-01-01T0:0:0.0.UTC"
+	mutex.acquire(1)
+	try:
+	        utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+	finally:
+		mutex.release()
 
         # Timezone from system
         from_zone = tz.tzutc()
@@ -681,10 +703,14 @@ def get_gps_neo6mgps():
 	max_count = 100 # Max waiting in iterations
 	count = 0 # Iteration counter
 	while flag==0:
-		latitude = gpsd.fix.latitude
-		longitude = gpsd.fix.longitude
-		altitude = gpsd.fix.altitude
-		flag = 1
+		mutex.acquire(1)
+		try:
+			latitude = gpsd.fix.latitude
+			longitude = gpsd.fix.longitude
+			altitude = gpsd.fix.altitude
+			flag = 1
+		finally:
+			mutex.release()
 
 		# Wait NaN received
 		if math.isnan(latitude) or math.isnan(longitude) or math.isnan(altitude):
@@ -758,7 +784,12 @@ def get_gps_neo6mgps():
 		# Covert DATE
 
 		# Get time from GPS
-		utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+		utc_time = "2017-01-01T0:0:0.0.UTC"
+		mutex.acquire(1)
+		try:
+			utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+		finally:
+			mutex.release()
 
 		# Timezone from system
 		from_zone = tz.tzutc()
@@ -817,10 +848,14 @@ def get_gps_neo6mgps_string():
 	max_count = 100 # Max waiting in iterations
 	count = 0 # Iteration counter
 	while flag==0:
-		latitude = gpsd.fix.latitude
-		longitude = gpsd.fix.longitude
-		altitude = gpsd.fix.altitude
-		flag = 1
+		mutex.acquire(1)
+		try:
+			latitude = gpsd.fix.latitude
+			longitude = gpsd.fix.longitude
+			altitude = gpsd.fix.altitude
+			flag = 1
+		finally:
+			mutex.release()
 
 		# Wait NaN received
 		if math.isnan(latitude) or math.isnan(longitude) or math.isnan(altitude):
@@ -894,7 +929,12 @@ def get_gps_neo6mgps_string():
 		# Covert DATE
 
 		# Get time from GPS
-		utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+		utc_time = "2017-01-01T0:0:0.0.UTC"
+		mutex.acquire(1)
+		try:
+			utc_time = datetime.strptime(gpsd.utc, "%Y-%m-%dT%H:%M:%S.%fZ")
+		finally:
+			mutex.release()
 
 		# Timezone from system
 		from_zone = tz.tzutc()
@@ -918,6 +958,38 @@ def get_gps_neo6mgps_string():
 	return (data_coord, data_alt, data_time)
 
 
+# Return empty strings for LCD
+def get_gps_neo6mgps_empty_string():
+
+        #degree_sign = u'\u00b0'
+        #degree_sign = u'\u030a'
+        degree_sign = u'\u006f'
+
+        # Convert LONGITUDE / LATITUDE / ALTITUDE
+        latitude = 0.0
+        lat_deg = 0
+        lat_min = 0
+        lat_sec = 0.0
+        lat_sym = 'N'
+
+        longitude = 0.0
+        lon_deg = 0
+        lon_min = 0
+        lon_sec = 0.0
+        lon_sym = 'E'
+        altitude = 0.0
+        alt_sym = 'm'
+
+	local_cur_date = "01/01/2017"
+	local_cur_time = "00:00"
+
+	# Create output strings
+        data_coord = "%d%s%d\'%s%d%s%d\'%s" % (lat_deg, degree_sign, lat_min, lat_sym, lon_deg, degree_sign, lon_min, lon_sym)
+        data_alt = "%.1f m" % (altitude)
+        data_time = "%sL%s" % (local_cur_date,local_cur_time)
+
+        return (data_coord, data_alt, data_time)
+
 # ------------------LCD CONTROL ---------------
 
 # CLASS OF SCREEN
@@ -928,16 +1000,20 @@ class LCDPoller(threading.Thread):
         def __init__(self):
                 threading.Thread.__init__(self)
                 global lcd_display #bring it in scope
+		global gpsd #bring it in scope
                 self.current_value = None
                 self.running = True #setting the thread running to true
 
         def run(self):
                 global lcd_display
+		#global gpsd
                 if (LCD_Initialized == False):
                        	lcd_init()
                 while lcd_display.running:
                        	th_string = get_am2302_string()
-                       	gps_coord_string, gps_alt_string, gps_time_string = get_gps_neo6mgps_string()
+
+                       	#gps_coord_string, gps_alt_string, gps_time_string = get_gps_neo6mgps_string()
+			gps_coord_string, gps_alt_string, gps_time_string = get_gps_neo6mgps_empty_string()
 
                        	# Print temperature/humidity and gps time
                        	co_string = gps_time_string
@@ -966,7 +1042,13 @@ class LCDPoller(threading.Thread):
                        	time.sleep(4)
 
 
+# ----------------- START THREADS -------------
+
 # Start GPS
+gpsp = GpsPoller() # create the thread
+gpsp.start() # start it up
+
+# Start LCD
 lcd_display = LCDPoller() # create the thread
 lcd_display.start() # start it up
 
